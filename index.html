@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>הטיול ליפן 🌸</title>
+  <style>
+    :root {
+      --primary: #d63384;
+      --bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --text: #212529;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      padding-bottom: 70px;
+    }
+    header {
+      background: linear-gradient(135deg, #ff758c, #ff7eb3);
+      color: white;
+      text-align: center;
+      padding: 20px 10px;
+      position: relative;
+    }
+    header h1 { margin: 0; font-size: 1.6rem; }
+    .logout-btn {
+      position: absolute; left: 10px; top: 15px;
+      background: rgba(255,255,255,0.2); color: white;
+      border: 1px solid white; padding: 5px 10px; border-radius: 6px;
+      font-size: 0.8rem; cursor: pointer; display: none;
+    }
+    .container { padding: 15px; max-width: 600px; margin: 0 auto; }
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .hero-img {
+      width: 100%; height: 180px; object-fit: cover; border-radius: 10px; margin-bottom: 15px;
+    }
+    .btn {
+      background-color: var(--primary);
+      color: white; border: none; padding: 10px 15px;
+      border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;
+      margin-top: 5px;
+    }
+    .btn-link {
+      display: inline-block; text-decoration: none; padding: 6px 12px;
+      border-radius: 6px; font-size: 0.85rem; margin-left: 5px; margin-top: 5px;
+      color: white;
+    }
+    .btn-maps { background-color: #4285F4; }
+    .btn-drive { background-color: #0F9D58; }
+    
+    nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: white; display: none; border-top: 1px solid #ddd;
+    }
+    nav button {
+      flex: 1; padding: 12px; border: none; background: none;
+      font-size: 0.9rem; font-weight: bold; color: #666;
+    }
+    nav button.active { color: var(--primary); border-top: 3px solid var(--primary); }
+    
+    .page { display: none; }
+    .page.active { display: block; }
+    input, textarea {
+      width: 100%; padding: 10px; margin: 5px 0 10px 0;
+      box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px;
+      font-size: 1rem;
+    }
+    #loading { text-align: center; padding: 30px; font-size: 1.1rem; }
+    #login-error { color: red; font-size: 0.9rem; margin-top: 5px; }
+  </style>
+
+  <!-- Firebase Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+</head>
+<body>
+
+  <header>
+    <h1>🌸 הטיול של אבא ואמא ליפן</h1>
+    <button id="logout-btn" class="logout-btn" onclick="logout()">התנתק</button>
+  </header>
+
+  <div class="container">
+    
+    <div id="loading">טוען... ⏳</div>
+
+    <!-- LOGIN PAGE -->
+    <div id="page-login" class="page">
+      <div class="card">
+        <h2>🔑 התחברות לאפליקציה</h2>
+        <p>נא להזין אימייל וסיסמה כדי לצפות בלו"ז הטיול:</p>
+        <input type="email" id="login-email" placeholder="אימייל">
+        <input type="password" id="login-password" placeholder="סיסמה">
+        <button class="btn" onclick="login()">התחבר</button>
+        <div id="login-error"></div>
+      </div>
+    </div>
+
+    <!-- MAIN APP CONTENT -->
+    <div id="main-content" style="display: none;">
+      
+      <!-- HOME PAGE -->
+      <div id="page-home" class="page">
+        <div class="card" style="text-align: center;">
+          <img src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=600&q=80" class="hero-img" alt="Japan">
+          <h2>ברוכים הבאים לטיול! 🇯🇵</h2>
+          <p>כאן תוכלו לראות את הלו"ז היומי, המלצות וכרטיסים.</p>
+          <button class="btn" onclick="showPage('days')">📅 לצפייה במסלול לפי ימים</button>
+          <button class="btn" style="background:#6c757d; margin-top:10px;" onclick="showPage('favs')">⭐ המלצות ומועדפים</button>
+        </div>
+      </div>
+
+      <!-- DAYS OVERVIEW PAGE -->
+      <div id="page-days" class="page">
+        <h2>📅 מסלול הימים</h2>
+        <div id="days-list"></div>
+        
+        <div class="card">
+          <h3>➕ הוספת יום חדש</h3>
+          <input type="text" id="new-day-title" placeholder="כותרת (למשל: יום 1)">
+          <input type="date" id="new-day-date">
+          <input type="text" id="new-day-city" placeholder="עיר (למשל: טוקיו)">
+          <input type="text" id="new-day-hotel" placeholder="איפה ישנים?">
+          <button class="btn" onclick="addDay()">הוסף יום</button>
+        </div>
+      </div>
+
+      <!-- DAY DETAIL PAGE -->
+      <div id="page-day-detail" class="page">
+        <button class="btn" style="background:#6c757d; width:auto; margin-bottom:10px;" onclick="showPage('days')">➡️ חזרה לימים</button>
+        <div id="day-detail-content"></div>
+        
+        <div class="card">
+          <h3>➕ הוספת אטרקציה ליום זה</h3>
+          <input type="text" id="attr-title" placeholder="שם האטרקציה / פעילות">
+          <input type="url" id="attr-maps" placeholder="קישור ל-Google Maps (אופציונלי)">
+          <input type="url" id="attr-drive" placeholder="קישור לכרטיס בדרייב (אופציונלי)">
+          <button class="btn" onclick="addAttraction()">הוסף אטרקציה</button>
+        </div>
+      </div>
+
+      <!-- FAVORITES PAGE -->
+      <div id="page-favs" class="page">
+        <h2>⭐ המלצות ומועדפים</h2>
+        <div id="favs-list"></div>
+        
+        <div class="card">
+          <h3>➕ הוספת המלצה</h3>
+          <input type="text" id="fav-title" placeholder="שם המקום / מסעדה / טיפ">
+          <textarea id="fav-desc" placeholder="תיאור קצר"></textarea>
+          <input type="url" id="fav-maps" placeholder="קישור ל-Google Maps (אופציונלי)">
+          <button class="btn" onclick="addFav()">הוסף המלצה</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <nav id="bottom-nav">
+    <button id="nav-home" onclick="showPage('home')">בית</button>
+    <button id="nav-days" onclick="showPage('days')">מסלול ימים</button>
+    <button id="nav-favs" onclick="showPage('favs')">המלצות</button>
+  </nav>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdMZO4YjKFeSXjroeDEwsDFAeVSCeaBIc",
+      authDomain: "japan-trip-parents.firebaseapp.com",
+      databaseURL: "https://japan-trip-parents-default-rtdb.firebaseio.com",
+      projectId: "japan-trip-parents",
+      storageBucket: "japan-trip-parents.firebasestorage.app",
+      messagingSenderId: "32576349189",
+      appId: "1:32576349189:web:532cbed166d78991e0e86c"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    let currentDayId = null;
+
+    auth.onAuthStateChanged(user => {
+      document.getElementById('loading').style.display = 'none';
+      if (user) {
+        document.getElementById('page-login').classList.remove('active');
+        document.getElementById('main-content').style.display = 'block';
+        document.getElementById('bottom-nav').style.display = 'flex';
+        document.getElementById('logout-btn').style.display = 'block';
+        showPage('home');
+        listenToData();
+      } else {
+        document.getElementById('main-content').style.display = 'none';
+        document.getElementById('bottom-nav').style.display = 'none';
+        document.getElementById('logout-btn').style.display = 'none';
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-login').classList.add('active');
+      }
+    });
+
+    function login() {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const errorDiv = document.getElementById('login-error');
+      errorDiv.innerText = '';
+
+      auth.signInWithEmailAndPassword(email, password)
+        .catch(error => {
+          errorDiv.innerText = 'אימייל או סיסמה שגויים';
+        });
+    }
+
+    function logout() {
+      auth.signOut();
+    }
+
+    function showPage(pageId) {
+      document.querySelectorAll('#main-content .page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      
+      const targetPage = document.getElementById(`page-${pageId}`);
+      if(targetPage) targetPage.classList.add('active');
+      
+      const navBtn = document.getElementById(`nav-${pageId}`);
+      if(navBtn) navBtn.classList.add('active');
+    }
+
+    function listenToData() {
+      db.ref('days').on('value', snapshot => {
+        const daysList = document.getElementById('days-list');
+        daysList.innerHTML = '';
+        const data = snapshot.val();
+        
+        if (!data) {
+          daysList.innerHTML = '<p>עדיין אין ימים במסלול.</p>';
+          return;
+        }
+
+        Object.keys(data).forEach(key => {
+          const day = data[key];
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <h3>${day.title || 'יום'} - ${day.city || ''}</h3>
+            <p>📅 <b>תאריך:</b> ${day.date || '-'}</p>
+            <p>🏨 <b>לינה:</b> ${day.hotel || '-'}</p>
+            <button class="btn" onclick="openDayDetail('${key}')">לצפייה בלו"ז הפירוט ⬅️</button>
+          `;
+          daysList.appendChild(card);
+        });
+      });
+
+      db.ref('favorites').on('value', snapshot => {
+        const favsList = document.getElementById('favs-list');
+        favsList.innerHTML = '';
+        const data = snapshot.val();
+        
+        if (!data) {
+          favsList.innerHTML = '<p>אין המלצות שמורות עדיין.</p>';
+          return;
+        }
+
+        Object.values(data).forEach(fav => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <h3>${fav.title}</h3>
+            <p>${fav.desc || ''}</p>
+            ${fav.maps ? `<a href="${fav.maps}" target="_blank" class="btn-link btn-maps">📍 Google Maps</a>` : ''}
+          `;
+          favsList.appendChild(card);
+        });
+      });
+    }
+
+    function addDay() {
+      const title = document.getElementById('new-day-title').value;
+      const date = document.getElementById('new-day-date').value;
+      const city = document.getElementById('new-day-city').value;
+      const hotel = document.getElementById('new-day-hotel').value;
+
+      if (!title) return alert('נא להזין כותרת');
+
+      db.ref('days').push({ title, date, city, hotel });
+      document.getElementById('new-day-title').value = '';
+      document.getElementById('new-day-date').value = '';
+      document.getElementById('new-day-city').value = '';
+      document.getElementById('new-day-hotel').value = '';
+    }
+
+    function openDayDetail(dayId) {
+      currentDayId = dayId;
+      showPage('day-detail');
+      
+      db.ref(`days/${dayId}`).on('value', snapshot => {
+        const day = snapshot.val();
+        if (!day) return;
+        
+        let html = `
+          <div class="card">
+            <h2>${day.title} - ${day.city}</h2>
+            <p>📅 ${day.date}</p>
+            <p>🏨 <b>לינה:</b> ${day.hotel}</p>
+          </div>
+          <h3>📍 אטרקציות ופעילויות:</h3>
+        `;
+
+        if (day.attractions) {
+          Object.values(day.attractions).forEach(attr => {
+            html += `
+              <div class="card">
+                <h4>${attr.title}</h4>
+                ${attr.maps ? `<a href="${attr.maps}" target="_blank" class="btn-link btn-maps">📍 Google Maps</a>` : ''}
+                ${attr.drive ? `<a href="${attr.drive}" target="_blank" class="btn-link btn-drive">🎟️ כרטיס בדרייב</a>` : ''}
+              </div>
+            `;
+          });
+        } else {
+          html += '<p>אין עדיין אטרקציות ליום זה.</p>';
+        }
+
+        document.getElementById('day-detail-content').innerHTML = html;
+      });
+    }
+
+    function addAttraction() {
+      if (!currentDayId) return;
+      const title = document.getElementById('attr-title').value;
+      const maps = document.getElementById('attr-maps').value;
+      const drive = document.getElementById('attr-drive').value;
+
+      if (!title) return alert('נא להזין שם אטרקציה');
+
+      db.ref(`days/${currentDayId}/attractions`).push({ title, maps, drive });
+      document.getElementById('attr-title').value = '';
+      document.getElementById('attr-maps').value = '';
+      document.getElementById('attr-drive').value = '';
+    }
+
+    function addFav() {
+      const title = document.getElementById('fav-title').value;
+      const desc = document.getElementById('fav-desc').value;
+      const maps = document.getElementById('fav-maps').value;
+
+      if (!title) return alert('נא להזין שם');
+
+      db.ref('favorites').push({ title, desc, maps });
+      document.getElementById('fav-title').value = '';
+      document.getElementById('fav-desc').value = '';
+      document.getElementById('fav-maps').value = '';
+    }
+  </script>
+</body>
+</html>
