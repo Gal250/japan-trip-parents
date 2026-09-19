@@ -51,6 +51,7 @@
       margin-bottom: 15px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       border-right: 6px solid transparent;
+      position: relative;
     }
     .hero-img {
       width: 100%; height: 180px; object-fit: cover; border-radius: 10px; margin-bottom: 15px;
@@ -62,6 +63,10 @@
       background-color: var(--primary);
       color: white; border: none; padding: 10px 15px;
       border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;
+      margin-top: 5px;
+    }
+    .btn-secondary {
+      background-color: #6c757d;
       margin-top: 5px;
     }
     .btn-link {
@@ -108,6 +113,26 @@
       color: var(--primary);
     }
     details[open] summary { margin-bottom: 10px; }
+
+    /* כפתורי פעולות (עריכה ומחיקה) בכרטיסיות */
+    .card-actions {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 4px 8px;
+      border-radius: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .action-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      padding: 2px 4px;
+    }
   </style>
 
   <!-- Firebase Scripts -->
@@ -121,7 +146,7 @@
 <body>
 
   <header>
-    <h1>🌸 הטיול של אבא ואמא ליפן</h1>
+    <h1>🌸 הטיול של מימי ודדי ליפן</h1>
     <button id="logout-btn" class="logout-btn" onclick="logout()">התנתק</button>
   </header>
 
@@ -159,16 +184,17 @@
       <div id="page-days" class="page">
         <h2>📅 מסלול הימים</h2>
 
-        <!-- הוספת יום - טופס ממוזער -->
-        <details>
-          <summary>➕ הוספת יום חדש</summary>
+        <!-- הוספת/עריכת יום -->
+        <details id="details-day">
+          <summary id="summary-day">➕ הוספת יום חדש</summary>
           <input type="text" id="new-day-title" placeholder="כותרת (למשל: יום 1)">
           <input type="date" id="new-day-date">
           <input type="text" id="new-day-city" placeholder="עיר (למשל: טוקיו)">
           <input type="text" id="new-day-hotel" placeholder="איפה ישנים? (שם המלון)">
           <input type="url" id="new-day-hotel-link" placeholder="קישור להזמנת מלון / דרייב / Booking">
           <input type="url" id="new-day-img" placeholder="קישור לתמונה של היום (אופציונלי)">
-          <button class="btn" onclick="addDay()">הוסף יום</button>
+          <button class="btn" id="btn-save-day" onclick="addDay()">הוסף יום</button>
+          <button class="btn btn-secondary" id="btn-cancel-day" style="display:none;" onclick="resetDayForm()">ביטול עריכה</button>
         </details>
 
         <div id="days-list"></div>
@@ -179,14 +205,15 @@
         <button class="btn" style="background:#6c757d; width:auto; margin-bottom:10px;" onclick="showPage('days')">➡️ חזרה לימים</button>
         <div id="day-detail-content"></div>
         
-        <!-- הוספת אטרקציה - טופס ממוזער -->
-        <details>
-          <summary>➕ הוספת אטרקציה ליום זה</summary>
-          <input type="text" id="attr-title" placeholder="חפשי מקום או הזדקני שם אטרקציה">
+        <!-- הוספת/עריכת אטרקציה -->
+        <details id="details-attr">
+          <summary id="summary-attr">➕ הוספת אטרקציה ליום זה</summary>
+          <input type="text" id="attr-title" placeholder="חפש מקום או הזן שם אטרקציה">
           <input type="url" id="attr-maps" placeholder="קישור ל-Google Maps (יתמלא אוטומטית סביב החיפוש)">
           <input type="url" id="attr-drive" placeholder="קישור לכרטיס בדרייב (אופציונלי)">
           <input type="url" id="attr-img" placeholder="קישור לתמונה (אופציונלי)">
-          <button class="btn" onclick="addAttraction()">הוסף אטרקציה</button>
+          <button class="btn" id="btn-save-attr" onclick="addAttraction()">הוסף אטרקציה</button>
+          <button class="btn btn-secondary" id="btn-cancel-attr" style="display:none;" onclick="resetAttrForm()">ביטול עריכה</button>
         </details>
       </div>
 
@@ -194,13 +221,14 @@
       <div id="page-favs" class="page">
         <h2>⭐ המלצות ומועדפים</h2>
         
-        <!-- הוספת המלצה - טופס ממוזער -->
-        <details>
-          <summary>➕ הוספת המלצה</summary>
+        <!-- הוספת/עריכת המלצה -->
+        <details id="details-fav">
+          <summary id="summary-fav">➕ הוספת המלצה</summary>
           <input type="text" id="fav-title" placeholder="שם המקום / מסעדה / טיפ">
           <textarea id="fav-desc" placeholder="תיאור קצר"></textarea>
           <input type="url" id="fav-maps" placeholder="קישור ל-Google Maps (אופציונלי)">
-          <button class="btn" onclick="addFav()">הוסף המלצה</button>
+          <button class="btn" id="btn-save-fav" onclick="addFav()">הוסף המלצה</button>
+          <button class="btn btn-secondary" id="btn-cancel-fav" style="display:none;" onclick="resetFavForm()">ביטול עריכה</button>
         </details>
 
         <div id="favs-list"></div>
@@ -232,6 +260,11 @@
     const auth = firebase.auth();
 
     let currentDayId = null;
+
+    // משתנים גלובליים למעקב אחר רשומות בעריכה
+    let editingDayId = null;
+    let editingAttrId = null;
+    let editingFavId = null;
 
     // מערך צבעים בהירים פסטליים לכל יום
     const dayColors = [
@@ -339,12 +372,16 @@
           card.style.borderRightColor = 'var(--primary)';
 
           card.innerHTML = `
+            <div class="card-actions">
+              <button class="action-icon" onclick="editDay('${key}')" title="ערוך יום">✏️</button>
+              <button class="action-icon" onclick="deleteDay('${key}')" title="מחק יום">🗑️</button>
+            </div>
             ${day.img ? `<img src="${day.img}" class="hero-img" alt="יום">` : ''}
             <h3>${day.title || 'יום'} - ${day.city || ''}</h3>
             <p>📅 <b>תאריך:</b> ${formatDate(day.date)}</p>
             <p>🏨 <b>לינה:</b> ${day.hotel || '-'}</p>
             ${day.hotelLink ? `<a href="${day.hotelLink}" target="_blank" class="btn-link btn-booking">🎟️ אישור הזמנה / דרייב</a>` : ''}
-            <button class="btn" style="margin-top:10px;" onclick="openDayDetail('${key}')">לצפייה בלו"ז הפירוט ⬅️</button>
+            <button class="btn" style="margin-top:10px;" onclick="openDayDetail('${key}')">לצפייה בלו"ז ⬅️</button>
           `;
           daysList.appendChild(card);
         });
@@ -360,10 +397,15 @@
           return;
         }
 
-        Object.values(data).forEach(fav => {
+        Object.keys(data).forEach(key => {
+          const fav = data[key];
           const card = document.createElement('div');
           card.className = 'card';
           card.innerHTML = `
+            <div class="card-actions">
+              <button class="action-icon" onclick="editFav('${key}')" title="ערוך המלצה">✏️</button>
+              <button class="action-icon" onclick="deleteFav('${key}')" title="מחק המלצה">🗑️</button>
+            </div>
             <h3>${fav.title}</h3>
             <p>${fav.desc || ''}</p>
             ${fav.maps ? `<a href="${fav.maps}" target="_blank" class="btn-link btn-maps">📍 Google Maps</a>` : ''}
@@ -373,6 +415,9 @@
       });
     }
 
+    // ========================================================
+    // ניהול ימים (הוספה, עריכה, מחיקה)
+    // ========================================================
     function addDay() {
       const title = document.getElementById('new-day-title').value;
       const date = document.getElementById('new-day-date').value;
@@ -383,19 +428,64 @@
 
       if (!title) return alert('נא להזין כותרת');
 
-      db.ref('days').push({ title, date, city, hotel, hotelLink, img });
-      
-      // איפוס שדות
+      const dayData = { title, date, city, hotel, hotelLink, img };
+
+      if (editingDayId) {
+        db.ref(`days/${editingDayId}`).update(dayData).then(() => resetDayForm());
+      } else {
+        db.ref('days').push(dayData).then(() => resetDayForm());
+      }
+    }
+
+    function editDay(dayId) {
+      db.ref(`days/${dayId}`).once('value').then(snapshot => {
+        const day = snapshot.val();
+        if (!day) return;
+
+        editingDayId = dayId;
+        document.getElementById('new-day-title').value = day.title || '';
+        document.getElementById('new-day-date').value = day.date || '';
+        document.getElementById('new-day-city').value = day.city || '';
+        document.getElementById('new-day-hotel').value = day.hotel || '';
+        document.getElementById('new-day-hotel-link').value = day.hotelLink || '';
+        document.getElementById('new-day-img').value = day.img || '';
+
+        document.getElementById('summary-day').innerText = '✏️ עריכת יום';
+        document.getElementById('btn-save-day').innerText = 'עדכן יום';
+        document.getElementById('btn-cancel-day').style.display = 'block';
+        document.getElementById('details-day').open = true;
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    function resetDayForm() {
+      editingDayId = null;
       document.getElementById('new-day-title').value = '';
       document.getElementById('new-day-date').value = '';
       document.getElementById('new-day-city').value = '';
       document.getElementById('new-day-hotel').value = '';
       document.getElementById('new-day-hotel-link').value = '';
       document.getElementById('new-day-img').value = '';
+
+      document.getElementById('summary-day').innerText = '➕ הוספת יום חדש';
+      document.getElementById('btn-save-day').innerText = 'הוסף יום';
+      document.getElementById('btn-cancel-day').style.display = 'none';
+      document.getElementById('details-day').open = false;
     }
 
+    function deleteDay(dayId) {
+      if (confirm('בטוח שברצונך למחוק יום זה על כל האטרקציות שבו?')) {
+        db.ref(`days/${dayId}`).remove();
+      }
+    }
+
+    // ========================================================
+    // ניהול עמוד פרטי יום ואטרקציות
+    // ========================================================
     function openDayDetail(dayId) {
       currentDayId = dayId;
+      resetAttrForm();
       showPage('day-detail');
       
       db.ref(`days/${dayId}`).on('value', snapshot => {
@@ -407,16 +497,21 @@
             ${day.img ? `<img src="${day.img}" class="hero-img">` : ''}
             <h2>${day.title} - ${day.city}</h2>
             <p>📅 ${formatDate(day.date)}</p>
-            <p>🏨 <b>לינה:</b> ${day.hotel}</p>
+            <p>🏨 <b>לינה:</b> ${day.hotel || '-'}</p>
             ${day.hotelLink ? `<a href="${day.hotelLink}" target="_blank" class="btn-link btn-booking">🎟️ אישור הזמנה / דרייב</a>` : ''}
           </div>
           <h3>📍 אטרקציות ופעילויות:</h3>
         `;
 
         if (day.attractions) {
-          Object.values(day.attractions).forEach(attr => {
+          Object.keys(day.attractions).forEach(attrId => {
+            const attr = day.attractions[attrId];
             html += `
               <div class="card">
+                <div class="card-actions">
+                  <button class="action-icon" onclick="editAttraction('${attrId}')" title="ערוך אטרקציה">✏️</button>
+                  <button class="action-icon" onclick="deleteAttraction('${attrId}')" title="מחק אטרקציה">🗑️</button>
+                </div>
                 <h4>${attr.title}</h4>
                 ${attr.img ? `<img src="${attr.img}" class="attr-img">` : ''}
                 ${attr.maps ? `<a href="${attr.maps}" target="_blank" class="btn-link btn-maps">📍 Google Maps</a>` : ''}
@@ -441,15 +536,59 @@
 
       if (!title) return alert('נא להזין שם אטרקציה');
 
-      db.ref(`days/${currentDayId}/attractions`).push({ title, maps, drive, img });
-      
-      // איפוס שדות
+      const attrData = { title, maps, drive, img };
+
+      if (editingAttrId) {
+        db.ref(`days/${currentDayId}/attractions/${editingAttrId}`).update(attrData).then(() => resetAttrForm());
+      } else {
+        db.ref(`days/${currentDayId}/attractions`).push(attrData).then(() => resetAttrForm());
+      }
+    }
+
+    function editAttraction(attrId) {
+      if (!currentDayId) return;
+      db.ref(`days/${currentDayId}/attractions/${attrId}`).once('value').then(snapshot => {
+        const attr = snapshot.val();
+        if (!attr) return;
+
+        editingAttrId = attrId;
+        document.getElementById('attr-title').value = attr.title || '';
+        document.getElementById('attr-maps').value = attr.maps || '';
+        document.getElementById('attr-drive').value = attr.drive || '';
+        document.getElementById('attr-img').value = attr.img || '';
+
+        document.getElementById('summary-attr').innerText = '✏️ עריכת אטרקציה';
+        document.getElementById('btn-save-attr').innerText = 'עדכן אטרקציה';
+        document.getElementById('btn-cancel-attr').style.display = 'block';
+        document.getElementById('details-attr').open = true;
+
+        window.scrollTo({ top: document.getElementById('details-attr').offsetTop - 20, behavior: 'smooth' });
+      });
+    }
+
+    function resetAttrForm() {
+      editingAttrId = null;
       document.getElementById('attr-title').value = '';
       document.getElementById('attr-maps').value = '';
       document.getElementById('attr-drive').value = '';
       document.getElementById('attr-img').value = '';
+
+      document.getElementById('summary-attr').innerText = '➕ הוספת אטרקציה ליום זה';
+      document.getElementById('btn-save-attr').innerText = 'הוסף אטרקציה';
+      document.getElementById('btn-cancel-attr').style.display = 'none';
+      document.getElementById('details-attr').open = false;
     }
 
+    function deleteAttraction(attrId) {
+      if (!currentDayId) return;
+      if (confirm('בטוח שברצונך למחוק אטרקציה זו?')) {
+        db.ref(`days/${currentDayId}/attractions/${attrId}`).remove();
+      }
+    }
+
+    // ========================================================
+    // ניהול מועדפים והמלצות
+    // ========================================================
     function addFav() {
       const title = document.getElementById('fav-title').value;
       const desc = document.getElementById('fav-desc').value;
@@ -457,10 +596,50 @@
 
       if (!title) return alert('נא להזין שם');
 
-      db.ref('favorites').push({ title, desc, maps });
+      const favData = { title, desc, maps };
+
+      if (editingFavId) {
+        db.ref(`favorites/${editingFavId}`).update(favData).then(() => resetFavForm());
+      } else {
+        db.ref('favorites').push(favData).then(() => resetFavForm());
+      }
+    }
+
+    function editFav(favId) {
+      db.ref(`favorites/${favId}`).once('value').then(snapshot => {
+        const fav = snapshot.val();
+        if (!fav) return;
+
+        editingFavId = favId;
+        document.getElementById('fav-title').value = fav.title || '';
+        document.getElementById('fav-desc').value = fav.desc || '';
+        document.getElementById('fav-maps').value = fav.maps || '';
+
+        document.getElementById('summary-fav').innerText = '✏️ עריכת המלצה';
+        document.getElementById('btn-save-fav').innerText = 'עדכן המלצה';
+        document.getElementById('btn-cancel-fav').style.display = 'block';
+        document.getElementById('details-fav').open = true;
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    function resetFavForm() {
+      editingFavId = null;
       document.getElementById('fav-title').value = '';
       document.getElementById('fav-desc').value = '';
       document.getElementById('fav-maps').value = '';
+
+      document.getElementById('summary-fav').innerText = '➕ הוספת המלצה';
+      document.getElementById('btn-save-fav').innerText = 'הוסף המלצה';
+      document.getElementById('btn-cancel-fav').style.display = 'none';
+      document.getElementById('details-fav').open = false;
+    }
+
+    function deleteFav(favId) {
+      if (confirm('בטוח שברצונך למחוק המלצה זו?')) {
+        db.ref(`favorites/${favId}`).remove();
+      }
     }
   </script>
 </body>
