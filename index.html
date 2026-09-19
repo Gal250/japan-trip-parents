@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>הטיול ליפן 🌸</title>
+
+  <!-- האייקון שיופיע במסך הבית של הטלפון -->
+  <link rel="icon" type="image/png" href="https://img.icons8.com/emoji/96/japan-emoji.png">
+  <link rel="apple-touch-icon" href="https://img.icons8.com/emoji/192/japan-emoji.png">
+
   <style>
     :root {
       --primary: #d63384;
@@ -22,16 +27,21 @@
     header {
       background: linear-gradient(135deg, #ff758c, #ff7eb3);
       color: white;
-      text-align: center;
-      padding: 20px 10px;
-      position: relative;
+      padding: 15px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-    header h1 { margin: 0; font-size: 1.6rem; }
+    header h1 { margin: 0; font-size: 1.3rem; }
     .logout-btn {
-      position: absolute; left: 10px; top: 15px;
-      background: rgba(255,255,255,0.2); color: white;
-      border: 1px solid white; padding: 5px 10px; border-radius: 6px;
-      font-size: 0.8rem; cursor: pointer; display: none;
+      background: rgba(255,255,255,0.25);
+      color: white;
+      border: 1px solid white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: none;
     }
     .container { padding: 15px; max-width: 600px; margin: 0 auto; }
     .card {
@@ -40,9 +50,13 @@
       padding: 15px;
       margin-bottom: 15px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border-right: 6px solid transparent;
     }
     .hero-img {
       width: 100%; height: 180px; object-fit: cover; border-radius: 10px; margin-bottom: 15px;
+    }
+    .attr-img {
+      width: 100%; height: 140px; object-fit: cover; border-radius: 8px; margin: 10px 0;
     }
     .btn {
       background-color: var(--primary);
@@ -57,6 +71,7 @@
     }
     .btn-maps { background-color: #4285F4; }
     .btn-drive { background-color: #0F9D58; }
+    .btn-booking { background-color: #003580; }
     
     nav {
       position: fixed; bottom: 0; left: 0; right: 0;
@@ -77,12 +92,32 @@
     }
     #loading { text-align: center; padding: 30px; font-size: 1.1rem; }
     #login-error { color: red; font-size: 0.9rem; margin-top: 5px; }
+
+    /* Accordion / Collapsible Forms */
+    details {
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #e0e0e0;
+    }
+    summary {
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 1.05rem;
+      color: var(--primary);
+    }
+    details[open] summary { margin-bottom: 10px; }
   </style>
 
   <!-- Firebase Scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+  <!-- Google Places API לקבלת השלמה אוטומטית למפות -->
+  <!-- החליפי את YOUR_PLACES_API_KEY במידה ותגדירי מפתח Places API ב-Google Cloud -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_PLACES_API_KEY&libraries=places" async defer></script>
 </head>
 <body>
 
@@ -124,16 +159,20 @@
       <!-- DAYS OVERVIEW PAGE -->
       <div id="page-days" class="page">
         <h2>📅 מסלול הימים</h2>
-        <div id="days-list"></div>
-        
-        <div class="card">
-          <h3>➕ הוספת יום חדש</h3>
+
+        <!-- הוספת יום - טופס ממוזער -->
+        <details>
+          <summary>➕ הוספת יום חדש</summary>
           <input type="text" id="new-day-title" placeholder="כותרת (למשל: יום 1)">
           <input type="date" id="new-day-date">
           <input type="text" id="new-day-city" placeholder="עיר (למשל: טוקיו)">
-          <input type="text" id="new-day-hotel" placeholder="איפה ישנים?">
+          <input type="text" id="new-day-hotel" placeholder="איפה ישנים? (שם המלון)">
+          <input type="url" id="new-day-hotel-link" placeholder="קישור להזמנת מלון / דרייב / Booking">
+          <input type="url" id="new-day-img" placeholder="קישור לתמונה של היום (אופציונלי)">
           <button class="btn" onclick="addDay()">הוסף יום</button>
-        </div>
+        </details>
+
+        <div id="days-list"></div>
       </div>
 
       <!-- DAY DETAIL PAGE -->
@@ -141,27 +180,31 @@
         <button class="btn" style="background:#6c757d; width:auto; margin-bottom:10px;" onclick="showPage('days')">➡️ חזרה לימים</button>
         <div id="day-detail-content"></div>
         
-        <div class="card">
-          <h3>➕ הוספת אטרקציה ליום זה</h3>
-          <input type="text" id="attr-title" placeholder="שם האטרקציה / פעילות">
-          <input type="url" id="attr-maps" placeholder="קישור ל-Google Maps (אופציונלי)">
+        <!-- הוספת אטרקציה - טופס ממוזער -->
+        <details>
+          <summary>➕ הוספת אטרקציה ליום זה</summary>
+          <input type="text" id="attr-title" placeholder="חפשי מקום או הזדקני שם אטרקציה">
+          <input type="url" id="attr-maps" placeholder="קישור ל-Google Maps (יתמלא אוטומטית סביב החיפוש)">
           <input type="url" id="attr-drive" placeholder="קישור לכרטיס בדרייב (אופציונלי)">
+          <input type="url" id="attr-img" placeholder="קישור לתמונה (אופציונלי)">
           <button class="btn" onclick="addAttraction()">הוסף אטרקציה</button>
-        </div>
+        </details>
       </div>
 
       <!-- FAVORITES PAGE -->
       <div id="page-favs" class="page">
         <h2>⭐ המלצות ומועדפים</h2>
-        <div id="favs-list"></div>
         
-        <div class="card">
-          <h3>➕ הוספת המלצה</h3>
+        <!-- הוספת המלצה - טופס ממוזער -->
+        <details>
+          <summary>➕ הוספת המלצה</summary>
           <input type="text" id="fav-title" placeholder="שם המקום / מסעדה / טיפ">
           <textarea id="fav-desc" placeholder="תיאור קצר"></textarea>
           <input type="url" id="fav-maps" placeholder="קישור ל-Google Maps (אופציונלי)">
           <button class="btn" onclick="addFav()">הוסף המלצה</button>
-        </div>
+        </details>
+
+        <div id="favs-list"></div>
       </div>
 
     </div>
@@ -191,6 +234,26 @@
 
     let currentDayId = null;
 
+    // מערך צבעים בהירים פסטליים לכל יום
+    const dayColors = [
+      '#FFF3BF', // צהוב בהיר
+      '#D3F9D8', // ירוק נענע בהיר
+      '#E7F5FF', // תכלת פסטל
+      '#FCC2D7', // ורוד רך
+      '#F3D9FA', // סגול לילך
+      '#FFE8CC'  // כתמתם בהיר
+    ];
+
+    // פונקציה לעיצוב תאריך מ- YYYY-MM-DD ל- DD/MM/YYYY
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    }
+
     auth.onAuthStateChanged(user => {
       document.getElementById('loading').style.display = 'none';
       if (user) {
@@ -200,6 +263,7 @@
         document.getElementById('logout-btn').style.display = 'block';
         showPage('home');
         listenToData();
+        initGooglePlaces();
       } else {
         document.getElementById('main-content').style.display = 'none';
         document.getElementById('bottom-nav').style.display = 'none';
@@ -208,6 +272,23 @@
         document.getElementById('page-login').classList.add('active');
       }
     });
+
+    // חיבור הצעות מיקום מ-Google Maps בתיבת הטקסט
+    function initGooglePlaces() {
+      const input = document.getElementById('attr-title');
+      if (window.google && window.google.maps && window.google.maps.places) {
+        const autocomplete = new google.maps.places.Autocomplete(input);
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          if (place.url) {
+            document.getElementById('attr-maps').value = place.url;
+          }
+          if (place.photos && place.photos.length > 0) {
+            document.getElementById('attr-img').value = place.photos[0].getUrl({ maxWidth: 600 });
+          }
+        });
+      }
+    }
 
     function login() {
       const email = document.getElementById('login-email').value;
@@ -247,15 +328,24 @@
           return;
         }
 
+        let index = 0;
         Object.keys(data).forEach(key => {
           const day = data[key];
+          const color = dayColors[index % dayColors.length];
+          index++;
+
           const card = document.createElement('div');
           card.className = 'card';
+          card.style.backgroundColor = color;
+          card.style.borderRightColor = 'var(--primary)';
+
           card.innerHTML = `
+            ${day.img ? `<img src="${day.img}" class="hero-img" alt="יום">` : ''}
             <h3>${day.title || 'יום'} - ${day.city || ''}</h3>
-            <p>📅 <b>תאריך:</b> ${day.date || '-'}</p>
+            <p>📅 <b>תאריך:</b> ${formatDate(day.date)}</p>
             <p>🏨 <b>לינה:</b> ${day.hotel || '-'}</p>
-            <button class="btn" onclick="openDayDetail('${key}')">לצפייה בלו"ז הפירוט ⬅️</button>
+            ${day.hotelLink ? `<a href="${day.hotelLink}" target="_blank" class="btn-link btn-booking">🎟️ אישור הזמנה / דרייב</a>` : ''}
+            <button class="btn" style="margin-top:10px;" onclick="openDayDetail('${key}')">לצפייה בלו"ז הפירוט ⬅️</button>
           `;
           daysList.appendChild(card);
         });
@@ -289,14 +379,20 @@
       const date = document.getElementById('new-day-date').value;
       const city = document.getElementById('new-day-city').value;
       const hotel = document.getElementById('new-day-hotel').value;
+      const hotelLink = document.getElementById('new-day-hotel-link').value;
+      const img = document.getElementById('new-day-img').value;
 
       if (!title) return alert('נא להזין כותרת');
 
-      db.ref('days').push({ title, date, city, hotel });
+      db.ref('days').push({ title, date, city, hotel, hotelLink, img });
+      
+      // איפוס שדות
       document.getElementById('new-day-title').value = '';
       document.getElementById('new-day-date').value = '';
       document.getElementById('new-day-city').value = '';
       document.getElementById('new-day-hotel').value = '';
+      document.getElementById('new-day-hotel-link').value = '';
+      document.getElementById('new-day-img').value = '';
     }
 
     function openDayDetail(dayId) {
@@ -309,9 +405,11 @@
         
         let html = `
           <div class="card">
+            ${day.img ? `<img src="${day.img}" class="hero-img">` : ''}
             <h2>${day.title} - ${day.city}</h2>
-            <p>📅 ${day.date}</p>
+            <p>📅 ${formatDate(day.date)}</p>
             <p>🏨 <b>לינה:</b> ${day.hotel}</p>
+            ${day.hotelLink ? `<a href="${day.hotelLink}" target="_blank" class="btn-link btn-booking">🎟️ אישור הזמנה / דרייב</a>` : ''}
           </div>
           <h3>📍 אטרקציות ופעילויות:</h3>
         `;
@@ -321,6 +419,7 @@
             html += `
               <div class="card">
                 <h4>${attr.title}</h4>
+                ${attr.img ? `<img src="${attr.img}" class="attr-img">` : ''}
                 ${attr.maps ? `<a href="${attr.maps}" target="_blank" class="btn-link btn-maps">📍 Google Maps</a>` : ''}
                 ${attr.drive ? `<a href="${attr.drive}" target="_blank" class="btn-link btn-drive">🎟️ כרטיס בדרייב</a>` : ''}
               </div>
@@ -339,13 +438,17 @@
       const title = document.getElementById('attr-title').value;
       const maps = document.getElementById('attr-maps').value;
       const drive = document.getElementById('attr-drive').value;
+      const img = document.getElementById('attr-img').value;
 
       if (!title) return alert('נא להזין שם אטרקציה');
 
-      db.ref(`days/${currentDayId}/attractions`).push({ title, maps, drive });
+      db.ref(`days/${currentDayId}/attractions`).push({ title, maps, drive, img });
+      
+      // איפוס שדות
       document.getElementById('attr-title').value = '';
       document.getElementById('attr-maps').value = '';
       document.getElementById('attr-drive').value = '';
+      document.getElementById('attr-img').value = '';
     }
 
     function addFav() {
